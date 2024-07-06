@@ -60,6 +60,11 @@ runs:
             DEPLOY_COMPONENT="hosting:${TARGET_COMPONENT}"
           fi
 
+          ## functionsがデプロイ対象だったらnpm installを実行
+          if [[ "${TARGET_COMPONENT}" == "functions" ]]; then
+            npm install -C functions
+          fi
+
           echo "${{ inputs.target_component }} に変更があったためデプロイします。"
           firebase deploy --only $DEPLOY_COMPONENT --token ${{ env.firebase_token }}
         else
