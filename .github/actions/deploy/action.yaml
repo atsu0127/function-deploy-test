@@ -1,0 +1,71 @@
+name: "Deploy Firebase Component"
+description: "inputsで指定されたFirebaseのコンポーネントをデプロイします。指定されたコンポーネントに変更があった場合のみデプロイします。"
+inputs:
+  firebase_token:
+    description: "デプロイ用のFirebaseのトークン"
+    required: true
+  target_component:
+    description: "デプロイ対象のコンポーネント(main or link or functions)"
+    required: true
+  force_deploy_functions:
+    description: "functionsに変更がない場合にもデプロイするかどうか"
+    type: boolean
+    required: false
+    default: false
+  force_deploy_main:
+    description: "hostingのmainに変更がない場合にもデプロイするかどうか"
+    type: boolean
+    required: false
+    default: false
+  force_deploy_link:
+    description: "hostingのlinkに変更がない場合にもデプロイするかどうか"
+    type: boolean
+    required: false
+    default: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Git Checkout"
+      uses: actions/checkout@v4
+
+    - name: "Paths Filter"
+      uses: dorny/paths-filter@v3
+      id: filter
+      with:
+        filters: |
+          main:
+            - 'public/main-site/**'
+          link:
+            - 'public/dynamic-link-site/**'
+          functions:
+            - 'functions/**'
+        token: ${{ github.token }}
+
+    - name: "install packages"
+      uses: asdf-vm/actions/install@v3
+
+    - name: "Switch to Test Project"
+      shell: bash
+      run: firebase use product --token ${{ env.firebase_token }}
+
+    - name: "Deploy ${{ inputs.target_component }}"
+      shell: bash
+      run: |
+        ## 対象のcomponentに変更があったか確認
+        TARGET_COMPONENT="${{ inputs.target_component }}"
+        FILTER=$(echo '${{ toJSON(steps.filter.outputs) }}' | jq -r .${TARGET_COMPONENT})
+        FORCE_DEPLOY=$(echo '${{ toJSON(inputs) }}' | jq -r ."force_deploy_${TARGET_COMPONENT}")
+
+        if [[ "${FILTER}" == "true" || "${FORCE_DEPLOY}" == "true" ]]; then
+          ## main or linkがデプロイ対象だったら頭にhostingをつける
+          DEPLOY_COMPONENT="${TARGET_COMPONENT}"
+          if [[ "${TARGET_COMPONENT}" == "main" || "${TARGET_COMPONENT}" == "link" ]]; then
+            DEPLOY_COMPONENT="hosting:${TARGET_COMPONENT}"
+          fi
+
+          echo "${{ inputs.target_component }} に変更があったためデプロイします。"
+          firebase deploy --only $DEPLOY_COMPONENT --token ${{ env.firebase_token }}
+        else
+          echo "${{ inputs.target_component }} には変更がないのでデプロイをスキップします。"
+        fi

@@ -1,0 +1,49 @@
+---
+# Copyright(C) 2024 Team Prelab
+
+name: "[Automatic Deployment]"
+
+on:
+  pull_request:
+    paths:
+      - public/**
+      - functions/**
+    branches:
+      - main
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      force_deploy_functions:
+        type: boolean
+        required: true
+        default: false
+      force_deploy_main:
+        type: boolean
+        required: true
+        default: false
+      force_deploy_link:
+        type: boolean
+        required: true
+        default: false
+
+env:
+  firebase_token: ${{ secrets.FIREBASE_TOKEN }}
+
+jobs:
+  deploy-functions:
+    name: "Deoloy Firebase Functions"
+    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch' }}
+    timeout-minutes: 10
+    permissions: read-all # paths-filter に Prelude-Firebase リポジトリの Read 権限を付与
+
+    steps:
+      - name: "Git Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Deploy Functions"
+        uses: ./.github/actions/deploy
+        with:
+          firebase_token: ${{ env.firebase_token }}
+          target_component: "functions"
+          force_deploy_functions: "${{ inputs.force_deploy_functions }}"
