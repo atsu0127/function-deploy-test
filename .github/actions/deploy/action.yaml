@@ -45,10 +45,6 @@ runs:
     - name: "install packages"
       uses: asdf-vm/actions/install@v3
 
-    - name: "Switch to Test Project"
-      shell: bash
-      run: firebase use product --token ${{ env.firebase_token }}
-
     - name: "Deploy ${{ inputs.target_component }}"
       shell: bash
       run: |
